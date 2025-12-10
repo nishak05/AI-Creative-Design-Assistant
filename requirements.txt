@@ -1,0 +1,13 @@
+torch
+diffusers
+transformers
+accelerate
+safetensors
+opencv-python
+pillow
+streamlit
+gradio
+huggingface_hub
+ftfy
+einops
+numpy
