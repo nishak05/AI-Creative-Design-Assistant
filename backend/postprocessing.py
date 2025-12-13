@@ -1,4 +1,3 @@
-# backend/postprocessing.py
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import json
 import os
@@ -27,11 +26,6 @@ def draw_text_with_shadow(draw, position, text, font, fill):
     draw.text((x, y), text, font=font, fill=fill)
 
 def overlay_text(img, title="TITLE", subtitle="", font_path=None, text_color="#FFFFFF"):
-    """
-    Draws a title and subtitle on the image and returns a new PIL.Image (RGB).
-    - font_path: path to .ttf/.otf or None to use default font.
-    - text_color: hex string like '#FFFFFF'
-    """
     if isinstance(img, str):
         img = Image.open(img)
 
