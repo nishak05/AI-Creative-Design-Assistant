@@ -1,8 +1,3 @@
-# backend/models.py
-# Minimal Stable Diffusion load + generate helper (keeps it modular)
-# NOTE: In local dev without a GPU you will use Colab to generate images,
-# but keep this file for future deployment where GPU is available.
-
 from diffusers import StableDiffusionPipeline
 import torch
 
