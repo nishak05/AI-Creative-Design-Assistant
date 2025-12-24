@@ -11,7 +11,8 @@ if ROOT_DIR not in sys.path:
 import streamlit as st
 from PIL import Image
 from backend.postprocessing import overlay_text, save_layout_metadata, export_for_platforms
-from backend.models import VARIANTS
+from backend.models import VARIANTS 
+# from backend.models import generate_background_from_prompt_api (.. for API version)
 
 
 st.set_page_config(page_title="AI Creative Design Copilot (MVP)", layout="wide")
@@ -44,12 +45,24 @@ with left_col:
         "Retro neon poster background, synthwave city skyline, pink and blue lights",
         height=90 
     )
+    st.caption("Prompt-based background generation is integrated but disabled currently for demo stability.")
+
 
     st.subheader("Text Content")
     title = st.text_input("Title", "TECH FEST 2025")
     subtitle = st.text_input("Subtitle", "Workshops • Hackathons • Talks")
 
     generate = st.button("Generate Design")
+
+    # generated_bg = None
+
+    # if generate and prompt:
+    #     with st.spinner("Generating background from prompt..."):
+    #         try:
+    #             generated_bg = generate_background_from_prompt_api(prompt)
+    #             st.session_state["generated_bg"] = generated_bg
+    #         except Exception as e:
+    #             st.error(str(e))
 
     st.divider()
 
@@ -95,28 +108,50 @@ if os.path.exists(img_dir):
 
 
 
-selected = None
-if images:
-    selected = st.sidebar.selectbox("Choose a background image", images)
+bg_options = ["(Generate from prompt)"] + images
 
-if selected and generate:
-    img_path = os.path.join(img_dir, selected)
-    img = Image.open(img_path)
+selected = st.sidebar.selectbox(
+    "Choose a background image",
+    bg_options
+)              
 
-    variants = []
 
-    for variant in VARIANTS:
-        out, meta = overlay_text(
-            img,
-            title=title,
-            subtitle=subtitle,
-            title_font_path=title_font_path,
-            subtitle_font_path=subtitle_font_path,
-            variant=variant
-        )
-        variants.append((variant["name"], out, meta))
 
-    st.session_state.generated_variants = variants
+img = None
+
+# if generate:
+#     with st.spinner("Generating design..."):
+#         if selected == "(Generate from prompt)":
+#             img = generate_background_from_prompt_api(prompt)
+#             st.session_state.generated_bg = True
+#         else:
+#             img_path = os.path.join(img_dir, selected)
+#             img = Image.open(img_path)
+#             st.session_state.generated_bg = False
+
+if generate:
+    if selected == "(Generate from prompt)":
+        # Day-12 stub: prompt-based generation is disabled
+        st.info("Prompt-based background generation is currently disabled for demo stability.")
+        st.info("Please select a sample background image.")
+    else:
+        img_path = os.path.join(img_dir, selected)
+        img = Image.open(img_path)
+    if img is not None:
+        variants = []
+
+        for variant in VARIANTS:
+            out, meta = overlay_text(
+                img,
+                title=title,
+                subtitle=subtitle,
+                title_font_path=title_font_path,
+                subtitle_font_path=subtitle_font_path,
+                variant=variant
+            )
+            variants.append((variant["name"], out, meta))
+
+        st.session_state.generated_variants = variants
 
 if st.session_state.generated_variants:
     with right_col:
@@ -151,6 +186,8 @@ if st.session_state.generated_variants:
 
             st.write(f"**Title font:** {final_meta['title_font']}")
             st.write(f"**Subtitle font:** {final_meta['subtitle_font']}")
+            if "generated_bg" in st.session_state:
+                st.write("**Background:** Generated from text prompt using Stable Diffusion (API)")
 
             if final_meta["text_color"] == "white":
                 st.write("**Text color:** White (chosen because background is dark)")
