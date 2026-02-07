@@ -105,6 +105,20 @@ st.sidebar.subheader("Background")
 
 st.write("This demo uses pre-generated backgrounds (from Colab). Generate in Colab and save to `assets/sample_images/`.")
 
+bg_source = st.sidebar.radio(
+    "Background source",
+    ["Upload image", "Use sample image"],
+    index=1
+)
+
+uploaded_file = None
+
+if bg_source == "Upload image":
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload background image",
+        type=["png", "jpg", "jpeg"]
+    )
+
 # Show available sample images
 img_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "sample_images")
 img_dir = os.path.abspath(img_dir)
@@ -114,12 +128,15 @@ if os.path.exists(img_dir):
 
 
 
-bg_options = ["(Generate from prompt)"] + images
+selected = None
 
-selected = st.sidebar.selectbox(
-    "Choose a background image",
-    bg_options
-)              
+if bg_source == "Use sample image":
+    bg_options = ["(Generate from prompt)"] + images
+    selected = st.sidebar.selectbox(
+        "Choose a background image",
+        bg_options
+    )
+              
 
 
 
@@ -137,14 +154,27 @@ img = None
 
 if generate:
     st.session_state.generated_variants = []
-    if selected == "(Generate from prompt)":
-        # Day-12 stub: prompt-based generation is disabled
-        st.info("Prompt-based background generation is currently disabled for demo stability.")
-        st.info("Please select a sample background image.")
-        st.stop()
+
+    # CASE 1 — Uploaded image
+    if bg_source == "Upload image":
+        if uploaded_file is None:
+            st.warning("Please upload a background image.")
+            st.stop()
+        img = Image.open(uploaded_file).convert("RGB")
+
+    # CASE 2 — Sample image
     else:
-        img_path = os.path.join(img_dir, selected)
-        img = Image.open(img_path)
+        if selected == "(Generate from prompt)":
+            st.info("Prompt-based background generation is currently disabled for demo stability.")
+            st.info("Please select a sample background image.")
+            st.stop()
+        elif selected:
+            img_path = os.path.join(img_dir, selected)
+            img = Image.open(img_path).convert("RGB")
+
+    if img is None:
+        st.stop()
+        
     if img is not None:
         variants = []
 
