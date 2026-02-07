@@ -1,16 +1,22 @@
-🎨 Multimodal Generative AI Design Assistant (MVP)
+🎨 AI Creative Design Assistant (MVP)
 
-This is an AI-assisted poster generation tool I’m building to explore how design logic and generative AI can work together. It takes text input and an AI-generated background and turns it into a usable poster layout using image processing and layout rules.
+This project is an AI-assisted poster design web application that helps users generate usable, readable poster layouts by applying design intelligence, image processing, and explainable layout rules.
 
-The focus of this project is on system integration and design intelligence, not training models from scratch.
+The system focuses on design decision-making (layout, typography, contrast, and platform-aware rendering) rather than training models from scratch.
 
 ✨ Features
 
 - Text-based poster creation (title + subtitle)
-- AI-generated background images (using Stable Diffusion)
+- Support for user-uploaded background images or curated samples
 - Automatic text placement using layout rules
+- Deterministic layout variants for design exploration
+- Explainable design decisions (layout, font, color)
 - Downloadable poster output
-- Simple web UI built with Streamlit
+- Platform-specific exports:
+    - Instagram
+    - LinkedIn
+    - YouTube
+- Web-based UI built with Streamlit
 
 🏗️ Tech Stack
 
@@ -21,7 +27,7 @@ The focus of this project is on system integration and design intelligence, not 
 
 📌 Status
 
-Working MVP. I’m currently improving typography, layout control, and overall design quality.
+Currently focused on improving usability, computer-vision–based layout intelligence, and design robustness.
 
 📎 Notes
 
