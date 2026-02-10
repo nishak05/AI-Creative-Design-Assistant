@@ -25,6 +25,12 @@ if "generated_variants" not in st.session_state:
 if "selected_variant" not in st.session_state:
     st.session_state.selected_variant = None
 
+if "last_title" not in st.session_state:
+    st.session_state.last_title = ""
+
+if "last_subtitle" not in st.session_state:
+    st.session_state.last_subtitle = ""
+
 left_col, divider_col, right_col = st.columns([1, 0.03, 1])
 
 
@@ -51,6 +57,12 @@ with left_col:
     st.subheader("Text Content")
     title = st.text_input("Title", "TECH FEST 2025")
     subtitle = st.text_input("Subtitle", "Workshops • Hackathons • Talks")
+
+    text_changed = (
+        title != st.session_state.last_title
+        or subtitle != st.session_state.last_subtitle
+    )
+
 
     generate = st.button("Generate Design")
 
@@ -199,6 +211,33 @@ if generate:
 
         st.session_state.generated_variants = variants
 
+# Auto-update variants when only text changes (background already fixed)
+if (
+    text_changed
+    and "base_background" in st.session_state
+    and not generate
+):
+    img = st.session_state.base_background.copy()
+    variants = []
+
+    for variant in VARIANTS:
+        out, meta = overlay_text(
+            img,
+            title=title,
+            subtitle=subtitle,
+            title_font_path=title_font_path,
+            subtitle_font_path=subtitle_font_path,
+            variant=variant
+        )
+        variants.append({
+            "name": variant["name"],
+            "image": out,
+            "meta": meta,
+            "variant": variant
+        })
+
+    st.session_state.generated_variants = variants
+
 if st.session_state.generated_variants:
     with right_col:
         st.subheader("Choose a Design Variant")
@@ -341,6 +380,11 @@ if st.session_state.generated_variants:
 
 else:
     st.info("No sample images found. Run the Colab notebook to generate backgrounds and place one in assets/sample_images.")
+
+
+st.session_state.last_title = title
+st.session_state.last_subtitle = subtitle
+
 
 # footer
 
