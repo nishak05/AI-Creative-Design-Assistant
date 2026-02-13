@@ -1,6 +1,16 @@
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import json
 import os
+import re
+
+MAX_TITLE_SCALE = 0.12
+MIN_TITLE_SCALE = 0.05
+
+MAX_SUBTITLE_SCALE = 0.06
+MIN_SUBTITLE_SCALE = 0.025
+
+BRIGHTNESS_THRESHOLD = 145
+
 
 def _load_font(font_path, size):
     try:
@@ -14,16 +24,31 @@ def _load_font(font_path, size):
     except Exception:
         return None
 
-def draw_text_with_shadow(draw, position, text, font, fill):
+def draw_text_adaptive(draw, position, text, font, text_color, brightness):
     x, y = position
-    # draw shadow
-    shadow_color = (0, 0, 0)
-    try:
-        draw.text((x+3, y+3), text, font=font, fill=shadow_color)
-    except Exception:
-        pass
-    # draw text
-    draw.text((x, y), text, font=font, fill=fill)
+
+    if text_color == "black" and brightness > 180:
+        # light background → subtle dark stroke
+        stroke_width = 2
+        stroke_fill = "black"
+        draw.text(
+            (x, y),
+            text,
+            font=font,
+            fill=text_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill
+        )
+
+    elif text_color == "white" and brightness < 100:
+        # dark background → subtle shadow
+        draw.text((x+2, y+2), text, font=font, fill="black")
+        draw.text((x, y), text, font=font, fill=text_color)
+
+    else:
+        # normal case
+        draw.text((x, y), text, font=font, fill=text_color)
+
 
 def get_average_brightness(image, box):
     crop = image.crop(box).convert("L")  # grayscale
@@ -37,6 +62,50 @@ def get_text_size(draw, text, font):
     width = bbox[2] - bbox[0]
     height = bbox[3] - bbox[1]
     return width, height
+
+def wrap_text(draw, text, font, max_width):
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        test_line = current_line + (" " if current_line else "") + word
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        text_width = bbox[2] - bbox[0]
+
+        if text_width <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return lines
+
+def remove_emoji(text):
+    # Removes emoji characters from text.
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map
+        "\U0001F700-\U0001F77F"
+        "\U0001F780-\U0001F7FF"
+        "\U0001F800-\U0001F8FF"
+        "\U0001F900-\U0001F9FF"
+        "\U0001FA00-\U0001FAFF"
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "]+",
+        flags=re.UNICODE
+    )
+
+    cleaned = emoji_pattern.sub("", text)
+    return cleaned, cleaned != text
+
 
 def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle_font_path=None, text_color="#FFFFFF", variant=None):
     if isinstance(img, str):
@@ -58,8 +127,14 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     w, h = image.size
 
     # Choose font sizes relative to image height
-    title_size = int(h * (variant.get("title_scale", 0.10)))
-    sub_size = int(h * (variant.get("subtitle_scale", 0.045)))
+    raw_title_scale = variant.get("title_scale", 0.10)
+    raw_sub_scale = variant.get("subtitle_scale", 0.045)
+
+    title_scale = max(MIN_TITLE_SCALE, min(MAX_TITLE_SCALE, raw_title_scale))
+    sub_scale = max(MIN_SUBTITLE_SCALE, min(MAX_SUBTITLE_SCALE, raw_sub_scale))
+
+    title_size = int(h * title_scale)
+    sub_size = int(h * sub_scale)
 
 
     title_font = _load_font(title_font_path, title_size)
@@ -70,23 +145,147 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     title_text = title or ""
     subtitle_text = subtitle or ""
 
-    # Title (near top center)
-    tw, th = get_text_size(draw, title_text, title_font)
-    title_x = max(10, (w - tw) / 2)
-    title_y = int(h * 0.08)
+    # Remove emoji
+    title_text, title_emoji_removed = remove_emoji(title_text)
+    subtitle_text, sub_emoji_removed = remove_emoji(subtitle_text)
 
-    # Subtitle (near bottom center)
-    sw, sh = get_text_size(draw, subtitle_text, sub_font)
-    sub_x = max(10, (w - sw) / 2)
-    sub_y = int(h * 0.82)
+    emoji_removed = title_emoji_removed or sub_emoji_removed
+    has_long_word = any(len(word) > 25 for word in title_text.split())
 
-    pad = int(th * 0.8)
+
+    # -------- TITLE WRAPPING LOGIC --------
+
+    SAFE_MARGIN = int(w * 0.10)
+    max_text_width = w - 2 * SAFE_MARGIN
+
+    MAX_TITLE_LINES = 3
+    # MIN_TITLE_SCALE = 0.045
+
+    title_lines = wrap_text(draw, title_text, title_font, max_text_width)
+    original_title_line_count = len(title_lines)
+
+
+    # Try shrinking if too many lines
+    while len(title_lines) > MAX_TITLE_LINES and title_scale > MIN_TITLE_SCALE:
+        title_scale *= 0.92
+        title_size = int(h * title_scale)
+        title_font = _load_font(title_font_path, title_size)
+        title_lines = wrap_text(draw, title_text, title_font, max_text_width)
+
+    title_overflow = len(title_lines) > MAX_TITLE_LINES
+
+    title_lines = title_lines[:MAX_TITLE_LINES]
+
+    line_spacing = int(title_size * 0.2)
+    title_y_start = max(int(h * 0.08), int(h * 0.05))
+
+    title_positions = []
+    current_y = title_y_start
+
+    for line in title_lines:
+        bbox = draw.textbbox((0, 0), line, font=title_font)
+        line_width = bbox[2] - bbox[0]
+        line_height = bbox[3] - bbox[1]
+
+        title_x = (w - line_width) // 2
+        title_positions.append((line, title_x, current_y))
+        current_y += line_height + line_spacing
+
+    # Calculate total height AFTER building positions
+    if title_positions:
+        first_y = title_positions[0][2]
+        last_line, _, last_y = title_positions[-1]
+        bbox = draw.textbbox((0, 0), last_line, font=title_font)
+        last_height = bbox[3] - bbox[1]
+        total_title_height = (last_y - first_y) + last_height
+    else:
+        first_y = title_y_start
+        total_title_height = title_size
+
+    # Prevent title block overflow
+    max_allowed_height = int(h * 0.45)
+    if total_title_height > max_allowed_height:
+        shrink_ratio = max_allowed_height / total_title_height
+        title_size = int(title_size * shrink_ratio)
+        title_font = _load_font(title_font_path, title_size)
+
+        # Re-wrap
+        title_lines = wrap_text(draw, title_text, title_font, max_text_width)
+        title_lines = title_lines[:3]
+
+        title_positions = []
+        current_y = title_y_start
+
+        for line in title_lines:
+            bbox = draw.textbbox((0, 0), line, font=title_font)
+            line_width = bbox[2] - bbox[0]
+            line_height = bbox[3] - bbox[1]
+
+            title_x = (w - line_width) // 2
+            title_positions.append((line, title_x, current_y))
+            current_y += line_height + line_spacing
+
+    # -------- SUBTITLE WRAPPING LOGIC --------
+    SAFE_MARGIN = int(w * 0.10)
+    max_sub_width = w - 2 * SAFE_MARGIN
+
+
+    MAX_SUB_LINES = 2
+    MIN_SUB_SCALE = 0.03
+
+    subtitle_lines = wrap_text(draw, subtitle_text, sub_font, max_sub_width)
+    original_sub_line_count = len(subtitle_lines)
+
+    while len(subtitle_lines) > MAX_SUB_LINES and sub_scale > MIN_SUB_SCALE:
+        sub_scale *= 0.92
+        sub_size = int(h * sub_scale)
+        sub_font = _load_font(subtitle_font_path, sub_size)
+        subtitle_lines = wrap_text(draw, subtitle_text, sub_font, max_sub_width)
+
+    subtitle_overflow = len(subtitle_lines) > MAX_SUB_LINES
+    subtitle_lines = subtitle_lines[:MAX_SUB_LINES]
+
+    sub_line_spacing = int(sub_size * 0.25)
+
+    sub_y_start = int(h * 0.82)
+
+    subtitle_positions = []
+
+    current_y = sub_y_start
+
+    for line in subtitle_lines:
+        bbox = draw.textbbox((0, 0), line, font=sub_font)
+        line_width = bbox[2] - bbox[0]
+        line_height = bbox[3] - bbox[1]
+
+        sub_x = (w - line_width) // 2
+        subtitle_positions.append((line, sub_x, current_y))
+        current_y += line_height + sub_line_spacing
+
+    # Now fix overflow AFTER building positions
+    if subtitle_positions:
+        last_line, _, last_y = subtitle_positions[-1]
+        bbox = draw.textbbox((0, 0), last_line, font=sub_font)
+        last_height = bbox[3] - bbox[1]
+
+        bottom = last_y + last_height
+        max_bottom = int(h * 0.95)
+
+        if bottom > max_bottom:
+            overflow = bottom - max_bottom
+            subtitle_positions = [
+                (line, x, y - overflow)
+                for (line, x, y) in subtitle_positions
+            ]
+
+    pad = int(title_size * 0.8)
     title_box = (
-        max(0, int(title_x - pad)),
-        max(0, int(title_y - pad)),
-        min(w, int(title_x + tw + pad)),
-        min(h, int(title_y + th + pad))
+        0,
+        max(0, int(first_y - pad)),
+        w,
+        min(h, int(first_y + total_title_height + pad))
     )
+
 
     brightness = get_average_brightness(image.convert("RGB"), title_box)
 
@@ -99,16 +298,39 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     # Draw text with shadow for readability
     try:
         if text_color == "white":
-            draw_text_with_shadow(draw, (title_x, title_y), title_text, title_font, text_color)
-            draw_text_with_shadow(draw, (sub_x, sub_y), subtitle_text, sub_font, text_color)
+            for line, x, y in title_positions:
+                draw_text_adaptive(
+                    draw,
+                    (x, y),
+                    line,
+                    title_font,
+                    text_color,
+                    brightness
+                )
+
+
+            for line, x, y in subtitle_positions:
+                draw_text_adaptive(
+                    draw,
+                    (x, y),
+                    line,
+                    sub_font,
+                    text_color,
+                    brightness
+                )
+
         else:
-            draw.text((title_x, title_y), title_text, font=title_font, fill=text_color)
-            draw.text((sub_x, sub_y), subtitle_text, font=sub_font, fill=text_color)
+            for line, x, y in title_positions:
+                draw.text((x, y), line, font=title_font, fill=text_color)
+            for line, x, y in subtitle_positions:
+                draw.text((x, y), line, font=sub_font, fill=text_color)
    
     except Exception:
-        # fallback: draw simple text
-        draw.text((title_x, title_y), title_text, fill=text_color)
-        draw.text((sub_x, sub_y), subtitle_text, fill=text_color)
+        for line, x, y in title_positions:
+            draw.text((x, y), line, fill=text_color)
+        for line, x, y in subtitle_positions:
+            draw.text((x, y), line, fill=text_color)
+
 
     metadata = {
         "title_font": os.path.basename(title_font_path) if title_font_path else "Default",
@@ -116,6 +338,16 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
         "text_color": text_color,
         "layout": "Title at top-center, subtitle at bottom-center",
         "background_brightness": round(brightness, 2),
+        "contrast_strategy": (
+            "stroke" if text_color == "black" and brightness > 180
+            else "shadow" if text_color == "white" and brightness < 100
+            else "none"
+        ),
+        "emoji_removed": emoji_removed,
+        "title_truncated": title_overflow,
+        "subtitle_truncated": subtitle_overflow,
+        "long_word_detected": has_long_word,
+
     }
     if variant:
         metadata["variant"] = variant.get("name", "default")

@@ -376,6 +376,21 @@ if st.session_state.generated_variants:
                     file_name="youtube.png",
                     mime="image/png"
                 )
+            
+            if final_meta.get("emoji_removed"):
+                st.warning("Emojis are currently not supported and were removed.")
+
+            if final_meta.get("title_truncated") or final_meta.get("subtitle_truncated"):
+                st.warning(
+                    "Text length was automatically resized to maintain layout integrity. "
+                    "For optimal visual balance, consider shortening long continuous text or reduce overall length."
+                )
+            if final_meta.get("long_word_detected"):
+                st.warning(
+                    "Long continuous words may affect layout readability. "
+                    "Consider adding spacing or shortening the title."
+                )
+
 
 
 else:
