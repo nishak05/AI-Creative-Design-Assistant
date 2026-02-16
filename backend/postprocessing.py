@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import json
 import os
 import re
-import numpy as np
+
 
 MAX_TITLE_SCALE = 0.12
 MIN_TITLE_SCALE = 0.05
@@ -143,7 +143,10 @@ def find_low_texture_slice(image, slice_height_ratio=0.12):
     return best_y
 
 
-def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle_font_path=None, text_color="#FFFFFF", variant=None):
+def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle_font_path=None, text_color="#FFFFFF", variant=None, platform=None):
+    if variant is None:
+        variant = {}
+
     if isinstance(img, str):
         img = Image.open(img)
 
@@ -162,6 +165,11 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     draw = ImageDraw.Draw(image)
     w, h = image.size
 
+    platform = None
+    if variant:
+        platform = variant.get("platform", None)
+
+
     # Choose font sizes relative to image height
     raw_title_scale = variant.get("title_scale", 0.10)
     raw_sub_scale = variant.get("subtitle_scale", 0.045)
@@ -169,9 +177,17 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     title_scale = max(MIN_TITLE_SCALE, min(MAX_TITLE_SCALE, raw_title_scale))
     sub_scale = max(MIN_SUBTITLE_SCALE, min(MAX_SUBTITLE_SCALE, raw_sub_scale))
 
-    title_size = int(h * title_scale)
-    sub_size = int(h * sub_scale)
+    # scale_adjust = variant.get("scale_adjust", 0) / 100
+    # title_scale *= (1 + scale_adjust)
+    # sub_scale *= (1 + scale_adjust)
 
+    base_dimension = min(w, h)
+
+    if w / h > 1.5:
+        base_dimension = int(base_dimension * 1.15)
+
+    title_size = int(base_dimension * title_scale)
+    sub_size   = int(base_dimension * sub_scale)
 
     title_font = _load_font(title_font_path, title_size)
     sub_font = _load_font(subtitle_font_path, sub_size)
@@ -180,6 +196,7 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     # compute positions (centered)
     title_text = title or ""
     subtitle_text = subtitle or ""
+    has_subtitle = bool(subtitle_text.strip())
 
     # Remove emoji
     title_text, title_emoji_removed = remove_emoji(title_text)
@@ -198,7 +215,7 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     # MIN_TITLE_SCALE = 0.045
 
     title_lines = wrap_text(draw, title_text, title_font, max_text_width)
-    original_title_line_count = len(title_lines)
+    # original_title_line_count = len(title_lines)
 
 
     # Try shrinking if too many lines
@@ -216,10 +233,39 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
    # Vision-aware placement
     try:
         detected_y = find_low_texture_slice(image)
-        title_y_start = max(int(h * 0.05), min(detected_y, int(h * 0.6)))
+
+        if platform == "YouTube":
+            #  avoid extreme top
+            safe_top = int(h * 0.18)
+            safe_bottom = int(h * 0.65)
+            title_y_start = max(safe_top, min(detected_y, safe_bottom))
+
+        elif platform == "LinkedIn":
+            # Slightly centered feel
+            safe_top = int(h * 0.10)
+            safe_bottom = int(h * 0.60)
+            title_y_start = max(safe_top, min(detected_y, safe_bottom))
+
+        else:
+            # Instagram + preview default
+            title_y_start = max(int(h * 0.08), min(detected_y, int(h * 0.6)))
+
+        # If no subtitle → shift slightly downward for balance
+        if not has_subtitle:
+            title_y_start += int(h * 0.12)
+
+        title_y_start = max(int(h * 0.05), min(title_y_start, int(h * 0.75)))
+
     except Exception:
-        # fallback to default placement
-        title_y_start = max(int(h * 0.08), int(h * 0.05))
+        title_y_start = int(h * 0.10)
+
+        # vertical_adjust = variant.get("vertical_adjust", 0) / 100
+        # title_y_start += int(h * vertical_adjust)
+        # title_y_start = max(int(h * 0.05), min(title_y_start, int(h * 0.75)))
+       
+    # except Exception:
+    #     # fallback to default placement
+    #     title_y_start = max(int(h * 0.08), int(h * 0.05))
 
     title_positions = []
     current_y = title_y_start
@@ -276,20 +322,21 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
     MIN_SUB_SCALE = 0.03
 
     subtitle_lines = wrap_text(draw, subtitle_text, sub_font, max_sub_width)
-    original_sub_line_count = len(subtitle_lines)
+    # original_sub_line_count = len(subtitle_lines)
 
     while len(subtitle_lines) > MAX_SUB_LINES and sub_scale > MIN_SUB_SCALE:
         sub_scale *= 0.92
-        sub_size = int(h * sub_scale)
+        sub_size = int(base_dimension * sub_scale)
+        sub_size = int(sub_size * 0.95)
         sub_font = _load_font(subtitle_font_path, sub_size)
         subtitle_lines = wrap_text(draw, subtitle_text, sub_font, max_sub_width)
 
     subtitle_overflow = len(subtitle_lines) > MAX_SUB_LINES
     subtitle_lines = subtitle_lines[:MAX_SUB_LINES]
 
-    sub_line_spacing = int(sub_size * 0.25)
+    sub_line_spacing = int(sub_size * 0.30)
 
-    sub_y_start = int(h * 0.82)
+    sub_y_start = int(h * 0.80)
 
     subtitle_positions = []
 
@@ -317,6 +364,23 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
             overflow = bottom - max_bottom
             subtitle_positions = [
                 (line, x, y - overflow)
+                for (line, x, y) in subtitle_positions
+            ]
+
+    # Ensure subtitle never too close to bottom
+    min_bottom_margin = int(h * 0.06)
+
+    if subtitle_positions:
+        last_line, _, last_y = subtitle_positions[-1]
+        bbox = draw.textbbox((0, 0), last_line, font=sub_font)
+        last_height = bbox[3] - bbox[1]
+
+        bottom = last_y + last_height
+
+        if h - bottom < min_bottom_margin:
+            shift_up = min_bottom_margin - (h - bottom)
+            subtitle_positions = [
+                (line, x, y - shift_up)
                 for (line, x, y) in subtitle_positions
             ]
 
@@ -350,23 +414,29 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
                     brightness
                 )
 
-
-            for line, x, y in subtitle_positions:
-                draw_text_adaptive(
-                    draw,
-                    (x, y),
-                    line,
-                    sub_font,
-                    text_color,
-                    brightness
-                )
-
         else:
             for line, x, y in title_positions:
                 draw.text((x, y), line, font=title_font, fill=text_color)
+
             for line, x, y in subtitle_positions:
                 draw.text((x, y), line, font=sub_font, fill=text_color)
-   
+
+        
+        for line, x, y in subtitle_positions:
+            if text_color == "white":
+                sub_fill = (235, 235, 235)  # softer white
+            else:
+                sub_fill = (30, 30, 30)     # softer black
+
+            draw_text_adaptive(
+                draw,
+                (x, y),
+                line,
+                sub_font,
+                sub_fill,
+                brightness
+            )
+
     except Exception:
         for line, x, y in title_positions:
             draw.text((x, y), line, fill=text_color)
@@ -432,6 +502,8 @@ def export_with_text(base_image, title, subtitle, title_font_path, subtitle_font
         left = (new_w - W) // 2
         top = (new_h - H) // 2
         cropped = resized.crop((left, top, left + W, top + H))
+        variant_with_platform = variant.copy()
+        variant_with_platform["platform"] = name  # Instagram / LinkedIn / YouTube
 
         final_img, _ = overlay_text(
             cropped,
@@ -439,7 +511,7 @@ def export_with_text(base_image, title, subtitle, title_font_path, subtitle_font
             subtitle=subtitle,
             title_font_path=title_font_path,
             subtitle_font_path=subtitle_font_path,
-            variant=variant
+            variant=variant_with_platform
         )
 
         exports[name] = final_img

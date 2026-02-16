@@ -29,20 +29,20 @@ def generate_background(pipe, prompt, guidance_scale=7.5, num_steps=28):
 VARIANTS = [
     {
         "name": "Bold Title",
-        "title_scale": 0.085,
-        "subtitle_scale": 0.038,
+        "title_scale": 0.10,
+        "subtitle_scale": 0.048,
         "layout": "top-heavy",
     },
     {
         "name": "Balanced",
-        "title_scale": 0.075,
-        "subtitle_scale": 0.035,
+        "title_scale": 0.085,
+        "subtitle_scale": 0.042,
         "layout": "center-balanced",
     },
     {
         "name": "Compact",
-        "title_scale": 0.065,
-        "subtitle_scale": 0.030,
+        "title_scale": 0.075,
+        "subtitle_scale": 0.040,
         "layout": "compact",
     },
 ]

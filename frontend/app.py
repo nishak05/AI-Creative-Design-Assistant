@@ -150,6 +150,20 @@ if bg_source == "Use sample image":
     )
               
 
+# st.sidebar.divider()
+
+# st.sidebar.subheader("Layout Adjustments")
+
+# vertical_adjust = st.sidebar.slider(
+#     "Vertical Shift (%)",
+#     -10, 10, 0
+# )
+
+# scale_adjust = st.sidebar.slider(
+#     "Scale Adjust (%)",
+#     -10, 10, 0
+# )
+
 
 
 img = None
@@ -199,7 +213,10 @@ if generate:
                 subtitle=subtitle,
                 title_font_path=title_font_path,
                 subtitle_font_path=subtitle_font_path,
-                variant=variant
+                
+                # variant={**variant,
+                #     "vertical_adjust": vertical_adjust,
+                #     "scale_adjust": scale_adjust}
             )
             variants.append({
                 "name": variant["name"],
