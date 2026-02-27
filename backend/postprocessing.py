@@ -2,6 +2,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import json
 import os
 import re
+import numpy as np
 
 
 MAX_TITLE_SCALE = 0.12
@@ -142,8 +143,48 @@ def find_low_texture_slice(image, slice_height_ratio=0.12):
 
     return best_y
 
+def score_readability(image, y_center, box_height):
+    """
+    Scores how readable text would be at given vertical center.
+    Lower score = better readability.
+    """
 
-def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle_font_path=None, text_color="#FFFFFF", variant=None, platform=None):
+    import numpy as np
+    import cv2
+
+    h, w = image.size[1], image.size[0]
+
+    top = max(0, int(y_center - box_height // 2))
+    bottom = min(h, int(y_center + box_height // 2))
+
+    region = np.array(image.convert("RGB"))[top:bottom, :, :]
+
+    if region.size == 0:
+        return 9999
+
+    gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+
+    brightness = np.mean(gray)
+    contrast = np.std(gray)
+
+    edges = cv2.Canny(gray, 50, 150)
+    edge_density = np.mean(edges)
+
+    # Penalize extreme brightness (sun glare)
+    glare_penalty = 0
+    if brightness > 220:
+        glare_penalty = 200
+
+    # Score formula (tuned for stability)
+    score = (
+        contrast * 1.2 +
+        edge_density * 0.8 +
+        glare_penalty
+    )
+
+    return score
+
+def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle_font_path=None, text_color="#FFFFFF", variant=None, platform=None, vision_analysis=None):
     if variant is None:
         variant = {}
 
@@ -164,6 +205,10 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
 
     draw = ImageDraw.Draw(image)
     w, h = image.size
+    # print("Vision passed:", vision_analysis is not None)
+    # if vision_analysis:
+    #     print("FULL VISION OBJECT:")
+    #     print(vision_analysis)
 
     platform = None
     if variant:
@@ -231,42 +276,64 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
 
     line_spacing = int(title_size * 0.2)
    # Vision-aware placement
+
     try:
         detected_y = find_low_texture_slice(image)
 
+        # Generate candidate zones
+        candidates = [
+            int(h * 0.20),
+            int(h * 0.35),
+            int(h * 0.50),
+            int(h * 0.65),
+        ]
+
+        # Include AI preference as candidate bias
+        if vision_analysis:
+            decision = vision_analysis.get("design_decision", {})
+            layout_pref = decision.get("ai_layout")
+
+            if layout_pref == "lower-third":
+                candidates.append(int(h * 0.60))
+            elif layout_pref == "center":
+                candidates.append(int(h * 0.45))
+            elif layout_pref == "top-balanced":
+                candidates.append(int(h * 0.25))
+
+        title_box_height = int(h * 0.18)
+
+        # Score each candidate
+        scored_positions = []
+        for c in candidates:
+            score = score_readability(image, c, title_box_height)
+            scored_positions.append((score, c))
+
+        # Pick best score
+        scored_positions.sort(key=lambda x: x[0])
+        detected_y = scored_positions[0][1]
+
+        # Platform safety bounds
         if platform == "YouTube":
-            #  avoid extreme top
             safe_top = int(h * 0.18)
             safe_bottom = int(h * 0.65)
             title_y_start = max(safe_top, min(detected_y, safe_bottom))
 
         elif platform == "LinkedIn":
-            # Slightly centered feel
-            safe_top = int(h * 0.10)
+            safe_top = int(h * 0.12)
             safe_bottom = int(h * 0.60)
             title_y_start = max(safe_top, min(detected_y, safe_bottom))
 
         else:
-            # Instagram + preview default
-            title_y_start = max(int(h * 0.08), min(detected_y, int(h * 0.6)))
+            title_y_start = max(int(h * 0.08), min(detected_y, int(h * 0.7)))
 
-        # If no subtitle → shift slightly downward for balance
         if not has_subtitle:
-            title_y_start += int(h * 0.12)
+            title_y_start += int(h * 0.08)
 
-        title_y_start = max(int(h * 0.05), min(title_y_start, int(h * 0.75)))
+        title_y_start = max(int(h * 0.05), min(title_y_start, int(h * 0.80)))
 
     except Exception:
-        title_y_start = int(h * 0.10)
-
-        # vertical_adjust = variant.get("vertical_adjust", 0) / 100
-        # title_y_start += int(h * vertical_adjust)
-        # title_y_start = max(int(h * 0.05), min(title_y_start, int(h * 0.75)))
-       
-    # except Exception:
-    #     # fallback to default placement
-    #     title_y_start = max(int(h * 0.08), int(h * 0.05))
-
+        title_y_start = int(h * 0.15)
+        
     title_positions = []
     current_y = title_y_start
 
@@ -395,47 +462,34 @@ def overlay_text(img, title="TITLE", subtitle="", title_font_path=None, subtitle
 
     brightness = get_average_brightness(image.convert("RGB"), title_box)
 
+
     # choose text color
-    if brightness < 145:
-        text_color = "white"
+    if vision_analysis and "design_decision" in vision_analysis:
+        text_color = vision_analysis["design_decision"]["ai_text_color"]
     else:
-        text_color = "black"
+        if brightness < 145:
+            text_color = "white"
+        else:
+            text_color = "black"
+
 
     # Draw text with shadow for readability
     try:
-        if text_color == "white":
-            for line, x, y in title_positions:
-                draw_text_adaptive(
-                    draw,
-                    (x, y),
-                    line,
-                    title_font,
-                    text_color,
-                    brightness
-                )
-
-        else:
-            for line, x, y in title_positions:
+        # Draw Title
+        for line, x, y in title_positions:
+            if text_color == "white":
+                draw_text_adaptive(draw, (x, y), line, title_font, text_color, brightness)
+            else:
                 draw.text((x, y), line, font=title_font, fill=text_color)
 
-            for line, x, y in subtitle_positions:
-                draw.text((x, y), line, font=sub_font, fill=text_color)
-
-        
+        # Draw Subtitle (slightly softer tone)
         for line, x, y in subtitle_positions:
             if text_color == "white":
-                sub_fill = (235, 235, 235)  # softer white
+                sub_fill = (235, 235, 235)
+                draw_text_adaptive(draw, (x, y), line, sub_font, sub_fill, brightness)
             else:
-                sub_fill = (30, 30, 30)     # softer black
-
-            draw_text_adaptive(
-                draw,
-                (x, y),
-                line,
-                sub_font,
-                sub_fill,
-                brightness
-            )
+                sub_fill = (30, 30, 30)
+                draw.text((x, y), line, font=sub_font, fill=sub_fill)
 
     except Exception:
         for line, x, y in title_positions:
@@ -477,7 +531,7 @@ def save_layout_metadata(outpath, metadata):
         json.dump(metadata, f, indent=2)
 
 
-def export_with_text(base_image, title, subtitle, title_font_path, subtitle_font_path, variant):
+def export_with_text(base_image, title, subtitle, title_font_path, subtitle_font_path, variant, vision_analysis=None):
     platforms = {
         "Instagram": (1080, 1080),
         "LinkedIn": (1200, 627),
@@ -511,7 +565,8 @@ def export_with_text(base_image, title, subtitle, title_font_path, subtitle_font
             subtitle=subtitle,
             title_font_path=title_font_path,
             subtitle_font_path=subtitle_font_path,
-            variant=variant_with_platform
+            variant=variant_with_platform,
+            vision_analysis=vision_analysis
         )
 
         exports[name] = final_img

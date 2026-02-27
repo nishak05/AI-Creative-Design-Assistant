@@ -12,8 +12,8 @@ import streamlit as st
 from PIL import Image
 from backend.postprocessing import overlay_text, save_layout_metadata, export_with_text
 from backend.models import VARIANTS 
-# from backend.models import generate_background_from_prompt_api (.. for API version)
-
+from backend.vision_analyzer import analyze_image
+# from backend.llm_engine import generate_design_copy
 
 st.set_page_config(page_title="AI Creative Design Copilot (MVP)", layout="wide")
 st.title("AI Creative Design Assistant — MVP")
@@ -30,6 +30,14 @@ if "last_title" not in st.session_state:
 
 if "last_subtitle" not in st.session_state:
     st.session_state.last_subtitle = ""
+
+if "subtitle" not in st.session_state:
+    st.session_state.subtitle = "Workshops • Hackathons • Talks"
+
+
+if "title" not in st.session_state:
+    st.session_state.title = "TECH FEST 2025"
+
 
 left_col, divider_col, right_col = st.columns([1, 0.03, 1])
 
@@ -55,14 +63,15 @@ with left_col:
 
 
     st.subheader("Text Content")
-    title = st.text_input("Title", "TECH FEST 2025")
-    subtitle = st.text_input("Subtitle", "Workshops • Hackathons • Talks")
+
+    title = st.text_input("Title", key="title")
+
+    subtitle = st.text_input("Subtitle", key="subtitle")
 
     text_changed = (
         title != st.session_state.last_title
         or subtitle != st.session_state.last_subtitle
     )
-
 
     generate = st.button("Generate Design")
 
@@ -131,6 +140,7 @@ if bg_source == "Upload image":
         type=["png", "jpg", "jpeg"]
     )
 
+
 # Show available sample images
 img_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "sample_images")
 img_dir = os.path.abspath(img_dir)
@@ -164,8 +174,7 @@ if bg_source == "Use sample image":
 #     -10, 10, 0
 # )
 
-
-
+        
 img = None
 
 # if generate:
@@ -200,7 +209,12 @@ if generate:
 
     if img is None:
         st.stop()
-        
+    
+    analysis = analyze_image(img)
+    st.session_state.vision_analysis = analysis
+    # Debug only (keep for development)
+    # print(analysis)
+
     if img is not None:
         variants = []
 
@@ -213,6 +227,8 @@ if generate:
                 subtitle=subtitle,
                 title_font_path=title_font_path,
                 subtitle_font_path=subtitle_font_path,
+                variant=variant,
+                vision_analysis=st.session_state.get("vision_analysis")
                 
                 # variant={**variant,
                 #     "vertical_adjust": vertical_adjust,
@@ -229,11 +245,10 @@ if generate:
         st.session_state.generated_variants = variants
 
 # Auto-update variants when only text changes (background already fixed)
-if (
-    text_changed
+if (text_changed
     and "base_background" in st.session_state
-    and not generate
-):
+    and not generate):
+
     img = st.session_state.base_background.copy()
     variants = []
 
@@ -244,7 +259,8 @@ if (
             subtitle=subtitle,
             title_font_path=title_font_path,
             subtitle_font_path=subtitle_font_path,
-            variant=variant
+            variant=variant,
+            vision_analysis=st.session_state.get("vision_analysis")
         )
         variants.append({
             "name": variant["name"],
@@ -340,7 +356,8 @@ if st.session_state.generated_variants:
                 subtitle,
                 title_font_path,
                 subtitle_font_path,
-                selected_variant_config
+                selected_variant_config,
+                vision_analysis=st.session_state.get("vision_analysis")
             )
 
 
