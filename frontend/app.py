@@ -16,7 +16,7 @@ from backend.vision_analyzer import analyze_image
 # from backend.llm_engine import generate_design_copy
 
 st.set_page_config(page_title="AI Creative Design Copilot (MVP)", layout="wide")
-st.title("AI Creative Design Assistant — MVP")
+st.title("AI Creative Design Assistant")
 st.divider()
 
 if "generated_variants" not in st.session_state:
