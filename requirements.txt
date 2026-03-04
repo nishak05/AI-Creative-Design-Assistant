@@ -12,3 +12,5 @@ ftfy
 einops
 numpy
 python-dotenv
+torchvision
+scikit-learn
