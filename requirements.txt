@@ -5,7 +5,7 @@ diffusers
 transformers
 accelerate
 safetensors
-opencv-python
+opencv-python-headless
 pillow
 huggingface_hub
 ftfy
