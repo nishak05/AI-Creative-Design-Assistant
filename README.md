@@ -51,13 +51,27 @@ This isn't a template filler. The app makes real design decisions based on image
 
 ## 📸 Screenshots
 
-*(Drag and drop your screenshots here)*
+### App Interface
+<img width="700" alt="Screenshot 2026-03-27 154729" src="https://github.com/user-attachments/assets/a5b958c1-b2ef-497f-9d39-313c1f1dfba7" />
+
+### Generated Poster Outputs
+
+**Custom Content Example**
+
+<img width="400" alt="composed_1774606864" src="https://github.com/user-attachments/assets/446be2fb-530a-4098-a3c3-6c5f23e0db32" />
+
+
+
+| LinkedIn Format | Instagram Format |
+|---|---|
+| <img width="350" alt="LinkedIn Poster" src="https://github.com/user-attachments/assets/d5180116-a80f-4037-8250-443d6442c24a" /> | <img width="270" alt="Instagram Poster" src="https://github.com/user-attachments/assets/f6e91c13-589c-415d-b4bd-63138dd20cf4" /> |
+
 
 ---
 
 ## 🚀 Run Locally
 ```bash
-git clone https://github.com/yourusername/your-repo-name
+git clone https://github.com/nishak05/AI-Creative-Design-Assistant
 cd your-repo-name
 pip install -r requirements.txt
 streamlit run app.py
@@ -68,10 +82,11 @@ streamlit run app.py
 ## 🗺️ Roadmap
 
 - [ ] Prompt-to-image background generation via API
+- [ ] Advanced typography positioning — refine scene-aware text placement for edge cases to ensure consistent readability across all image types and aspect ratios
 - [ ] Drag-and-drop text positioning
 - [ ] Template system with pre-designed layouts
 - [ ] Batch export as ZIP
 
 ---
 
-*Built by [Nisha Kumari](https://www.linkedin.com/in/nisha-kumari-41b69125b/))*
+*Built by [Nisha Kumari](https://www.linkedin.com/in/nisha-kumari-41b69125b/)*
