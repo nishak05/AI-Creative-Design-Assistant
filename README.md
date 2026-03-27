@@ -58,7 +58,7 @@ This isn't a template filler. The app makes real design decisions based on image
 
 **Custom Content Example**
 
-<img width="400" alt="composed_1774606864" src="https://github.com/user-attachments/assets/446be2fb-530a-4098-a3c3-6c5f23e0db32" />
+<img width="350" alt="composed_1774606864" src="https://github.com/user-attachments/assets/446be2fb-530a-4098-a3c3-6c5f23e0db32" />
 
 
 
@@ -66,6 +66,7 @@ This isn't a template filler. The app makes real design decisions based on image
 |---|---|
 | <img width="350" alt="LinkedIn Poster" src="https://github.com/user-attachments/assets/d5180116-a80f-4037-8250-443d6442c24a" /> | <img width="270" alt="Instagram Poster" src="https://github.com/user-attachments/assets/f6e91c13-589c-415d-b4bd-63138dd20cf4" /> |
 
+*Same poster automatically adapted for different platform dimensions*
 
 ---
 
