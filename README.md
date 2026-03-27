@@ -1,34 +1,77 @@
-🎨 AI Creative Design Assistant (MVP)
+# 🎨 AI Creative Design Assistant
 
-This project is an AI-assisted poster design web application that helps users generate usable, readable poster layouts by applying design intelligence, image processing, and explainable layout rules.
+> Generate social-media-ready posters in minutes — powered by computer vision, automated design intelligence, and platform-aware rendering.
 
-The system focuses on design decision-making (layout, typography, contrast, and platform-aware rendering) rather than training models from scratch.
+**[Live Demo →](https://ai-creative-design-assistant.streamlit.app/)** | Built with Python & Streamlit
 
-✨ Features
+---
 
-- Text-based poster creation (title + subtitle)
-- Support for user-uploaded background images or curated samples
-- Automatic text placement using layout rules
-- Deterministic layout variants for design exploration
-- Explainable design decisions (layout, font, color)
-- Downloadable poster output
-- Platform-specific exports:
-    - Instagram
-    - LinkedIn
-    - YouTube
-- Web-based UI built with Streamlit
+## 📌 What It Does
 
-🏗️ Tech Stack
+Upload any image, add your title and subtitle — the app analyzes your image and generates three ready-to-post poster variants with automatically optimized typography, layout, and contrast. No design skills needed.
 
-- Python
-- Streamlit
-- PIL (Pillow)
-- Stable Diffusion (inference via Google Colab)
+---
 
-📌 Status
+## 🧠 How It Works — Technical Overview
 
-Currently focused on improving usability, computer-vision–based layout intelligence, and design robustness.
+This isn't a template filler. The app makes real design decisions based on image analysis:
 
-📎 Notes
+- **Scene Classification** — pretrained ResNet18 classifies the image into scene categories (nature, city, indoor) to inform layout strategy
+- **Dominant Color Extraction** — KMeans clustering extracts color palette and detects warm/cool tone
+- **Contrast & Brightness Analysis** — computes luminance using weighted RGB decomposition to auto-select black/white font
+- **Texture Gradient Analysis** — finds low-noise image regions for safe, readable text placement
+- **Rule-based Design Engine** — chains all features into layout decisions (position, shadow, emphasis)
+- **3 Design Variants** — distinct typography and spacing combinations with explainable reasoning
+- **Platform-optimized Export** — correct dimensions for LinkedIn, Instagram, and YouTube
 
-This project uses pretrained models for inference only.
+---
+
+## ✨ Features
+
+- Upload custom background image or select from curated samples
+- Title and subtitle input with font selection
+- Auto font color and size selection based on image analysis
+- 3 poster variants with design decision explanations
+- Live preview in LinkedIn, Instagram, YouTube dimensions
+- Download in all three platform sizes
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend & Deployment | Streamlit, Streamlit Cloud |
+| Image Processing & CV | OpenCV, Pillow (PIL), NumPy |
+| Deep Learning | PyTorch, ResNet18 (pretrained) |
+| Clustering | Scikit-learn (KMeans) |
+| Language | Python |
+
+---
+
+## 📸 Screenshots
+
+*(Drag and drop your screenshots here)*
+
+---
+
+## 🚀 Run Locally
+```bash
+git clone https://github.com/yourusername/your-repo-name
+cd your-repo-name
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Prompt-to-image background generation via API
+- [ ] Drag-and-drop text positioning
+- [ ] Template system with pre-designed layouts
+- [ ] Batch export as ZIP
+
+---
+
+*Built by [Nisha Kumari](https://www.linkedin.com/in/nisha-kumari-41b69125b/))*
