@@ -1,4 +1,4 @@
-# 🎨 AI Creative Design Assistant
+# AI Creative Design Assistant
 
 > Generate social-media-ready posters in minutes — powered by computer vision, automated design intelligence, and platform-aware rendering.
 
@@ -12,7 +12,7 @@ Upload any image, add your title and subtitle — the app analyzes your image an
 
 ---
 
-## 🧠 How It Works — Technical Overview
+## How It Works — Technical Overview
 
 This isn't a template filler. The app makes real design decisions based on image analysis:
 
@@ -26,7 +26,7 @@ This isn't a template filler. The app makes real design decisions based on image
 
 ---
 
-## ✨ Features
+## Features
 
 - Upload custom background image or select from curated samples
 - Title and subtitle input with font selection
@@ -37,7 +37,7 @@ This isn't a template filler. The app makes real design decisions based on image
 
 ---
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -49,7 +49,7 @@ This isn't a template filler. The app makes real design decisions based on image
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### App Interface
 <img width="700" alt="Screenshot 2026-03-27 154729" src="https://github.com/user-attachments/assets/a5b958c1-b2ef-497f-9d39-313c1f1dfba7" />
@@ -80,7 +80,7 @@ streamlit run app.py
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [ ] Prompt-to-image background generation via API
 - [ ] Advanced typography positioning — refine scene-aware text placement for edge cases to ensure consistent readability across all image types and aspect ratios
